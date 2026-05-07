@@ -54,6 +54,25 @@ def add_code_block(doc, code_text):
     run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
     return p
 
+def add_image_custom(doc, image_path, caption, width_inches=5.5):
+    """Insert an image with centered caption."""
+    # Add image
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(3)
+    run = p.add_run()
+    run.add_picture(image_path, width=Inches(width_inches))
+    # Add caption
+    cap_p = doc.add_paragraph()
+    cap_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cap_p.paragraph_format.space_after = Pt(12)
+    cap_run = cap_p.add_run(caption)
+    set_body_style(cap_run)
+    cap_run.font.size = Pt(10)
+    cap_run.font.italic = True
+    return p
+
 def add_table_from_data(doc, headers, rows):
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = 'Table Grid'
@@ -421,6 +440,8 @@ add_paragraph_custom(doc,
 
 add_heading_custom(doc, '6.2 加速比分析', level=2)
 
+add_image_custom(doc, 'results/speedup.png', '图 1  不同规模下的加速比曲线')
+
 add_paragraph_custom(doc,
     '从加速比数据可以观察到明显的规模依赖效应。当样本数 N 较小（如 N=10000）时，加速比曲线波动剧烈：'
     'P=2 时加速比达到 2.59，P=4 时却回落至 2.04，P=8 时再次升至 3.16。这种不规则波动的原因是：'
@@ -451,6 +472,8 @@ add_paragraph_custom(doc,
 
 add_heading_custom(doc, '6.3 效率分析', level=2)
 
+add_image_custom(doc, 'results/efficiency.png', '图 2  不同规模下的效率曲线')
+
 add_paragraph_custom(doc,
     '效率指标 E = Sp / P 衡量了每个处理器的资源利用率，是并行算法可扩放性（Scalability）的核心度量。')
 
@@ -478,6 +501,8 @@ add_paragraph_custom(doc,
     '进一步验证了在单机异构多核环境下，进程数超过性能核数会导致性能退化。')
 
 add_heading_custom(doc, '6.5 成本分析', level=2)
+
+add_image_custom(doc, 'results/cost.png', '图 4  不同规模下的成本曲线')
 
 add_paragraph_custom(doc,
     '成本 C = Tp × P 反映了并行算法消耗的总处理器资源。理想情况下，若并行算法没有额外开销，'
