@@ -601,5 +601,5 @@ add_code_block(doc,
 "}")
 
 # Save
-doc.save('/Users/yangyu/code/parallel-kmeans/并行KMeans聚类课程设计报告.docx')
-print("Report saved to: /Users/yangyu/code/parallel-kmeans/并行KMeans聚类课程设计报告.docx")
+doc.save('并行KMeans聚类课程设计报告.docx')
+print("Report saved to: 并行KMeans聚类课程设计报告.docx")

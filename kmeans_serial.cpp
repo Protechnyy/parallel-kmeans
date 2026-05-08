@@ -3,31 +3,42 @@
 #include <cmath>
 #include <cstdlib>
 #include <chrono>
+#include <random>
+#include <algorithm>
 #include "data_generator.hpp"
 
 // Serial K-Means
-// Usage: ./kmeans_serial <N> <d> <K> <max_iter>
-// Example: ./kmeans_serial 100000 16 8 20
+// Usage: ./kmeans_serial <N> <d> <K> <max_iter> [seed]
+// Timer excludes data generation, includes center initialization and iterations.
 
 int main(int argc, char* argv[]) {
     int N = 100000;
     int d = 16;
     int K = 8;
     int max_iter = 20;
+    unsigned int seed = 42;
 
     if (argc >= 2) N = std::atoi(argv[1]);
     if (argc >= 3) d = std::atoi(argv[2]);
     if (argc >= 4) K = std::atoi(argv[3]);
     if (argc >= 5) max_iter = std::atoi(argv[4]);
+    if (argc >= 6) seed = static_cast<unsigned int>(std::atoi(argv[5]));
 
+    // Data generation (excluded from timing)
     std::vector<double> data;
-    generate_data(N, d, K, data);
+    generate_data(N, d, K, data, nullptr, seed);
 
-    // Initialize centers by picking first K samples
+    // Random center initialization (included in timing)
+    std::mt19937 rng(seed);
+    std::vector<int> indices(N);
+    for (int i = 0; i < N; ++i) indices[i] = i;
+    std::shuffle(indices.begin(), indices.end(), rng);
+
     std::vector<double> centers(K * d);
     for (int k = 0; k < K; ++k) {
+        int idx = indices[k];
         for (int dim = 0; dim < d; ++dim) {
-            centers[k * d + dim] = data[k * d + dim];
+            centers[k * d + dim] = data[idx * d + dim];
         }
     }
 

@@ -5,10 +5,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
+#include <random>
+#include <algorithm>
 #include "data_generator.hpp"
 
 // MPI Parallel K-Means using PCAM methodology
-// Usage: mpirun -np <P> ./kmeans_mpi <N> <d> <K> <max_iter>
+// Usage: mpirun -np <P> ./kmeans_mpi <N> <d> <K> <max_iter> [seed]
+// Timer excludes data generation, MPI_Init, argument parsing, and MPI_Finalize.
+// Timer includes MPI_Scatterv, MPI_Bcast, local computation, MPI_Allreduce, and center updates.
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
@@ -21,27 +25,36 @@ int main(int argc, char* argv[]) {
     int d = 16;
     int K = 8;
     int max_iter = 20;
+    unsigned int seed = 42;
 
     if (argc >= 2) N = std::atoi(argv[1]);
     if (argc >= 3) d = std::atoi(argv[2]);
     if (argc >= 4) K = std::atoi(argv[3]);
     if (argc >= 5) max_iter = std::atoi(argv[4]);
+    if (argc >= 6) seed = static_cast<unsigned int>(std::atoi(argv[5]));
 
     std::vector<double> data;
     std::vector<double> centers(K * d);
 
-    // Root process generates data and initializes centers
+    // Root process generates data and randomly samples initial centers
+    // (excluded from timing)
     if (rank == 0) {
-        generate_data(N, d, K, data);
+        generate_data(N, d, K, data, nullptr, seed);
+
+        std::mt19937 rng(seed);
+        std::vector<int> indices(N);
+        for (int i = 0; i < N; ++i) indices[i] = i;
+        std::shuffle(indices.begin(), indices.end(), rng);
+
         for (int k = 0; k < K; ++k) {
+            int idx = indices[k];
             for (int dim = 0; dim < d; ++dim) {
-                centers[k * d + dim] = data[k * d + dim];
+                centers[k * d + dim] = data[idx * d + dim];
             }
         }
     }
 
     // Partitioning: divide N samples among P processes
-    // Each process gets local_N samples
     int base = N / size;
     int rem = N % size;
     std::vector<int> sendcounts(size), displs(size);
@@ -53,13 +66,15 @@ int main(int argc, char* argv[]) {
 
     std::vector<double> local_data(local_N * d);
 
-    // Scatter data to all processes
+    // Timing starts before Scatterv/Bcast (includes communication setup)
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_start = std::chrono::high_resolution_clock::now();
+
+    // Scatter data and broadcast centers (included in timing)
     MPI_Scatterv(data.empty() ? nullptr : data.data(),
                  sendcounts.data(), displs.data(), MPI_DOUBLE,
                  local_data.data(), local_N * d, MPI_DOUBLE,
                  0, MPI_COMM_WORLD);
-
-    // Broadcast initial centers
     MPI_Bcast(centers.data(), K * d, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     std::vector<int> local_labels(local_N);
@@ -67,9 +82,6 @@ int main(int argc, char* argv[]) {
     std::vector<int> local_count(K, 0);
     std::vector<double> global_sum(K * d, 0.0);
     std::vector<int> global_count(K, 0);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto t_start = std::chrono::high_resolution_clock::now();
 
     for (int iter = 0; iter < max_iter; ++iter) {
         // Local assignment step
